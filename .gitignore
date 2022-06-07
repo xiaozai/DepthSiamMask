@@ -106,3 +106,4 @@ venv.bak/
 experiments/siammask_sharp/*.pth
 experiments/siammask_sharp/*.pth.1
 experiments/siammask_sharp/test/*
+*.DS_Store
