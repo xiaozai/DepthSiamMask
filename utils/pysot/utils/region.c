@@ -4,11 +4,11 @@
 {
     "distutils": {
         "depends": [
-            "/home/yan/Data2/SiamMask/utils/pysot/utils/src/region.h"
+            "src/region.h"
         ],
         "include_dirs": [
             "src/",
-            "/home/yan/Data2/SiamMask/utils/pysot/utils"
+            "."
         ],
         "name": "region",
         "sources": [
