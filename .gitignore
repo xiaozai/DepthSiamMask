@@ -113,6 +113,7 @@ experiments/siamrpn_resnet/*.model
 experiments/siammask_base/snapshot/*.pth
 experiments/siammask_base/snapshot/checkpoint_e1.pth
 experiments/siammask_base/logs/*
+experiments/siammask_base/log_test.txt
 experiments/siammask_base/board/*.sgn
 experiments/siammask_base/logs/*.txt
 experiments/*.model
@@ -120,6 +121,7 @@ data/*/*.json
 data/*.json
 data/*.png
 data/*.zip
+data/DAVIS*
 data/tennis/*.jpg
 data/trackdat/*
 data/VOT*/*
