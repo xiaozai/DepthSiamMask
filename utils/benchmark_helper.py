@@ -54,7 +54,15 @@ def load_dataset(dataset):
             if gt.shape[1] == 4:
                 gt = np.column_stack((gt[:, 0], gt[:, 1], gt[:, 0], gt[:, 1] + gt[:, 3]-1,
                                       gt[:, 0] + gt[:, 2]-1, gt[:, 1] + gt[:, 3]-1, gt[:, 0] + gt[:, 2]-1, gt[:, 1]))
-            info[video] = {'image_files': image_files, 'gt': gt, 'name': video}
+            if 'RGBD' in dataset:
+                depth_path = join(video_path, '*.png')
+                depth_files = sorted(glob.glob(depth_path))
+                if len(depth_files) == 0:
+                    depth_path = join(video_path, 'depth', '*.png')
+                    depth_files = sorted(glob.glob(depth_path))
+                info[video] = {'image_files': image_files, 'depth_files': depth_files, 'gt': gt, 'name': video}
+            else:
+                info[video] = {'image_files': image_files, 'gt': gt, 'name': video}
     elif 'DAVIS' in dataset and 'TEST' not in dataset:
         base_path = join(realpath(dirname(__file__)), '../data', 'DAVIS')
         list_path = join(realpath(dirname(__file__)), '../data', 'DAVIS', 'ImageSets', dataset[-4:], 'val.txt')

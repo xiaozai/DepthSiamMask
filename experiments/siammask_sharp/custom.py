@@ -122,7 +122,7 @@ class Refine(nn.Module):
         self.post0 = nn.Conv2d(32, 16, 3, padding=1)
         self.post1 = nn.Conv2d(16, 4, 3, padding=1)
         self.post2 = nn.Conv2d(4, 1, 3, padding=1)
-        
+
         for modules in [self.v0, self.v1, self.v2, self.h2, self.h1, self.h0, self.deconv, self.post0, self.post1, self.post2,]:
             for l in modules.modules():
                 if isinstance(l, nn.Conv2d):
@@ -189,3 +189,33 @@ class Custom(SiamMask):
         pred_mask = self.refine_model(self.feature, self.corr_feature, pos=pos, test=True)
         return pred_mask
 
+class Custom_RGBD(SiamMask):
+    def __init__(self, pretrain=False, **kwargs):
+        super(Custom, self).__init__(**kwargs)
+        self.features = ResDown(pretrain=pretrain)
+        self.depth_features = ResDown(pretrain=pretrain)
+        self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
+        self.mask_model = MaskCorr()
+        self.refine_model = Refine()
+
+    def refine(self, f, pos=None):
+        return self.refine_model(f, pos)
+
+    def template(self, template):
+        self.zf = self.features(template)
+
+    def track(self, search):
+        search = self.features(search)
+        rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
+        return rpn_pred_cls, rpn_pred_loc
+
+    def track_mask(self, search):
+        self.feature, self.search = self.features.forward_all(search)
+        rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, self.search)
+        self.corr_feature = self.mask_model.mask.forward_corr(self.zf, self.search)
+        pred_mask = self.mask_model.mask.head(self.corr_feature)
+        return rpn_pred_cls, rpn_pred_loc, pred_mask
+
+    def track_refine(self, pos):
+        pred_mask = self.refine_model(self.feature, self.corr_feature, pos=pos, test=True)
+        return pred_mask
