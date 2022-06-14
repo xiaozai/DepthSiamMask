@@ -116,6 +116,7 @@ experiments/siammask_base/logs/*
 experiments/siammask_base/log_test.txt
 experiments/siammask_base/board/*.sgn
 experiments/siammask_base/logs/*.txt
+experiments/siammask_base/test/*
 experiments/*.model
 data/*/*.json
 data/*.json
