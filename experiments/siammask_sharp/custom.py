@@ -191,9 +191,9 @@ class Custom(SiamMask):
 
 class Custom_RGBD(SiamMask):
     def __init__(self, pretrain=False, **kwargs):
-        super(Custom, self).__init__(**kwargs)
+        super(Custom_RGBD, self).__init__(**kwargs)
         self.features = ResDown(pretrain=pretrain)
-        self.depth_features = ResDown(pretrain=pretrain)
+        # self.depth_features = ResDown(pretrain=pretrain)
         self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
         self.mask_model = MaskCorr()
         self.refine_model = Refine()

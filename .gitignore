@@ -109,6 +109,8 @@ experiments/siammask_sharp/test/*
 *.DS_Store
 experiments/siammask_base/*.model
 experiments/siammask_sharp/*.model
+experiments/siammask_sharp/log*
+experiments/siammask_sharp/*.txt
 experiments/siamrpn_resnet/*.model
 experiments/siammask_base/snapshot/*.pth
 experiments/siammask_base/snapshot/checkpoint_e1.pth

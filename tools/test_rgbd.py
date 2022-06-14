@@ -26,6 +26,7 @@ from utils.tracker_config import TrackerConfig
 
 from utils.config_helper import load_config
 from utils.pyvotkit.region import vot_overlap, vot_float2str
+import math
 
 thrs = np.arange(0.3, 0.5, 0.05)
 
@@ -316,18 +317,22 @@ def siamese_track(state, im, mask_enable=False, refine_enable=False, device='cpu
 
 def get_target_depth(depth, bbox):
     depth = np.nan_to_num(depth)
-    depth_region = depth[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]]
-    depth_pixels = depth_region.flatten()
-    depth_pixels = depth_pixels[depth_pixels>0]
-    target_depth = np.median(depth_pixels)
-    return target_depth
+    bbox = [int(b) if not math.isnan(b) else 0 for b in bbox]
+    if bbox[2] > 0 and bbox[3] > 0:
+        depth_region = depth[bbox[1]:bbox[1]+bbox[3], bbox[0]:bbox[0]+bbox[2]]
+        depth_pixels = depth_region.flatten()
+        depth_pixels = depth_pixels[depth_pixels>0]
+        target_depth = np.median(depth_pixels)
+        return target_depth
+    else:
+        return np.median(depth[depth>0])
 
 def depth_processing(depth, min_depth=0, max_depth=10000, is_colormap=True):
     depth[depth<min_depth] = min_depth
     depth[depth>max_depth] = max_depth
     depth = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
     if is_colormap:
-        depth = cv2.applyColorMap(depth, cv2.COLORMAP_JET)
+        depth = cv2.applyColorMap(np.asarray(depth, dtype=np.uint8), cv2.COLORMAP_JET)
     return depth
 
 def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False, device='cpu'):
@@ -336,7 +341,8 @@ def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False, dev
 
     start_frame, end_frame, lost_times, toc = 0, len(image_files), 0, 0
 
-    for f, image_file, depth_file in enumerate(zip(image_files, depth_files)):
+    for f, rgbd_files in enumerate(zip(image_files, depth_files)):
+        image_file, depth_file = rgbd_files[0], rgbd_files[1]
         im = cv2.imread(image_file)
         dp = cv2.imread(depth_file, -1)
         tic = cv2.getTickCount()
@@ -379,12 +385,15 @@ def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False, dev
             else:
                 b_overlap = 1
 
-            if b_overlap:
-                regions.append(location)
-            else:  # lost
-                regions.append(2)
+            if not b_overlap:
                 lost_times += 1
-                start_frame = f + 5  # skip 5 frames
+            # if b_overlap:
+            #     regions.append(location)
+            # else:  # lost
+            #     regions.append(2)
+            #     lost_times += 1
+            #     start_frame = f + 5  # skip 5 frames
+            
         else:  # skip
             regions.append(0)
         toc += cv2.getTickCount() - tic
@@ -417,7 +426,7 @@ def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False, dev
             cv2.putText(im_show, str(lost_times), (40, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             cv2.putText(im_show, str(state['score']) if 'score' in state else '', (40, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-            cv2.imshow(video['name'], cv2.hconcat([im_show, dp_show])
+            cv2.imshow(video['name'], cv2.hconcat([im_show, dp_show]))
             cv2.waitKey(1)
     toc /= cv2.getTickFrequency()
 

@@ -7,6 +7,7 @@ fi
 
 ROOT=`git rev-parse --show-toplevel`
 export PYTHONPATH=$ROOT:$PYTHONPATH
+export PYTHONPATH=$PWD:$PYTHONPATH
 
 mkdir -p logs
 
@@ -18,5 +19,5 @@ gpu=$4
 CUDA_VISIBLE_DEVICES=$gpu python -u $ROOT/tools/test_rgbd.py \
     --config $config \
     --resume $model \
-    --mask --refine \
+    --mask --refine --visualization \
     --dataset $dataset 2>&1 | tee logs/test_$dataset.log
