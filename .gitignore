@@ -143,3 +143,4 @@ data/vid/val.json
 data/ytb_vos/*.zip
 data/ytb_vos/train/*
 data/ytb_vos/crop511/*
+*.pth

@@ -26,11 +26,15 @@ class ResDownS(nn.Module):
 
 
 class ResDown(MultiStageFeature):
-    def __init__(self, pretrain=False):
+    def __init__(self, pretrain=False, pretrain_path=None):
         super(ResDown, self).__init__()
         self.features = resnet50(layer3=True, layer4=False)
         if pretrain:
             load_pretrain(self.features, 'resnet.model')
+
+        ''' Only for depth Resnet50 '''
+        if pretrain_path is not None:
+            load_pretrain(self.features, pretrain_path)
 
         self.downsample = ResDownS(1024, 256)
 
@@ -190,10 +194,10 @@ class Custom(SiamMask):
         return pred_mask
 
 class Custom_RGBD(SiamMask):
-    def __init__(self, pretrain=False, **kwargs):
+    def __init__(self, pretrain=False, pretrain_path=None, **kwargs):
         super(Custom_RGBD, self).__init__(**kwargs)
         self.features = ResDown(pretrain=pretrain)
-        # self.depth_features = ResDown(pretrain=pretrain)
+        # self.depth_features = ResDown(pretrain=pretrain, pretrain_path=pretrain_path)
         self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
         self.mask_model = MaskCorr()
         self.refine_model = Refine()
@@ -201,16 +205,38 @@ class Custom_RGBD(SiamMask):
     def refine(self, f, pos=None):
         return self.refine_model(f, pos)
 
-    def template(self, template):
-        self.zf = self.features(template)
+    def template(self, template, template_d):
+        self.zf = self.features(template) # [B, 256, 7, 7]
+        # self.zf_d = self.depth_features(template_d)
+        self.zf_d = self.features(template_d)
 
-    def track(self, search):
+        # RGBD fusion
+        # self.zf = torch.max(self.zf, self.zf_d)
+        self.zf = self.zf + 0.1 * self.zf_d
+
+    def track(self, search, search_d):
         search = self.features(search)
+        # search_d = self.depth_features(search_d)
+        search_d = self.features(search_d)
+
+        # RGBD fusion
+        # search = torch.max(search, search_d)
+        search = search + 0.1 * search_d
+
         rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
         return rpn_pred_cls, rpn_pred_loc
 
-    def track_mask(self, search):
+    def track_mask(self, search, search_d):
         self.feature, self.search = self.features.forward_all(search)
+        # self.feature_d, self.search_d = self.depth_features.forward_all(search_d)
+        self.feature_d, self.search_d = self.features.forward_all(search_d)
+
+        # RGBD fusion
+        # self.feature = list([torch.max(f, f_d) for f, f_d in zip(self.feature, self.feature_d)])
+        # self.search = torch.max(self.search, self.search_d)
+        self.feature = list([f + 0.1 * f_d for f, f_d in zip(self.feature, self.feature_d)])
+        self.search = self.search + 0.1 * self.search_d
+
         rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, self.search)
         self.corr_feature = self.mask_model.mask.forward_corr(self.zf, self.search)
         pred_mask = self.mask_model.mask.head(self.corr_feature)

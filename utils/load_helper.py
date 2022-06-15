@@ -29,6 +29,7 @@ def remove_prefix(state_dict, prefix):
 
 def load_pretrain(model, pretrained_path):
     logger.info('load pretrained model from {}'.format(pretrained_path))
+
     if not torch.cuda.is_available():
         pretrained_dict = torch.load(pretrained_path, map_location=lambda storage, loc: storage)
     else:
@@ -50,6 +51,18 @@ def load_pretrain(model, pretrained_path):
             new_dict[k] = v
         pretrained_dict = new_dict
         check_keys(model, pretrained_dict)
+
+    # Song, try to load Depth-Resnet50
+    ''' Two keys shape changes
+    - layer2.0.downsample.0.weight
+    - layer3.0.downsample.0.weight
+    '''
+    model_dict = model.state_dict()
+    for key in model_dict.keys():
+        if key in pretrained_dict:
+            if pretrained_dict[key].shape != model_dict[key].shape:
+                del pretrained_dict[key]
+                print(key)
     model.load_state_dict(pretrained_dict, strict=False)
     return model
 
