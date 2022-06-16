@@ -980,3 +980,19 @@
 [2022-06-15 17:20:17,331-rk0-test_rgbd.py#534] (64) Video: teapot       Time: 30.7s Speed: 30.9fps Lost: 93
 [2022-06-15 17:21:01,612-rk0-test_rgbd.py#534] (65) Video: tennis_ball  Time: 22.8s Speed: 31.0fps Lost: 534
 [2022-06-15 17:21:52,304-rk0-test_rgbd.py#534] (66) Video: thermos_office_noocc_1 Time: 30.5s Speed: 31.8fps Lost: 0
+[2022-06-15 17:23:27,069-rk0-test_rgbd.py#534] (67) Video: thermos_office_occ_1 Time: 46.8s Speed: 30.1fps Lost: 378
+[2022-06-15 17:24:15,180-rk0-test_rgbd.py#534] (68) Video: toy_office_noocc_1 Time: 29.7s Speed: 33.2fps Lost: 0
+[2022-06-15 17:25:09,393-rk0-test_rgbd.py#534] (69) Video: toy_office_occ_1 Time: 29.2s Speed: 29.1fps Lost: 321
+[2022-06-15 17:26:20,346-rk0-test_rgbd.py#534] (70) Video: trashcan_room_occ_1 Time: 43.3s Speed: 30.1fps Lost: 329
+[2022-06-15 17:27:19,438-rk0-test_rgbd.py#534] (71) Video: trashcans_room_occ_1_A Time: 32.2s Speed: 26.3fps Lost: 542
+[2022-06-15 17:28:24,752-rk0-test_rgbd.py#534] (72) Video: trashcans_room_occ_1_B Time: 36.1s Speed: 26.1fps Lost: 144
+[2022-06-15 17:30:46,189-rk0-test_rgbd.py#534] (73) Video: trendNetBag_outside Time: 68.3s Speed: 30.8fps Lost: 491
+[2022-06-15 17:32:48,894-rk0-test_rgbd.py#534] (74) Video: trendNet_outside Time: 59.0s Speed: 30.8fps Lost: 165
+[2022-06-15 17:35:00,547-rk0-test_rgbd.py#534] (75) Video: trophy_outside Time: 64.2s Speed: 31.1fps Lost: 92
+[2022-06-15 17:36:14,872-rk0-test_rgbd.py#534] (76) Video: trophy_room_noocc_1 Time: 45.3s Speed: 31.1fps Lost: 3
+[2022-06-15 17:38:16,886-rk0-test_rgbd.py#534] (77) Video: trophy_room_occ_1 Time: 59.1s Speed: 29.5fps Lost: 765
+[2022-06-15 17:39:20,165-rk0-test_rgbd.py#534] (78) Video: two_mugs     Time: 33.8s Speed: 33.5fps Lost: 239
+[2022-06-15 17:40:06,145-rk0-test_rgbd.py#534] (79) Video: two_tennis_balls Time: 22.4s Speed: 32.2fps Lost: 404
+[2022-06-15 17:41:46,878-rk0-test_rgbd.py#534] (80) Video: XMG_outside  Time: 56.6s Speed: 33.8fps Lost: 147
+[2022-06-15 17:41:46,880-rk0-test_rgbd.py#720] Total Lost: 21764
+[2022-06-15 17:41:46,880-rk0-test_rgbd.py#722] Mean Speed: 29.46 FPS

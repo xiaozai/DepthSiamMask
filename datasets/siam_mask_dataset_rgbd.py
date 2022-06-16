@@ -81,7 +81,7 @@ class SubDataSet(object):
         self.frame_range = 100
         self.mark = "vid"
         self.path_format = "{}.{}.{}.jpg"
-        self.path_format = "{}.{}.{}.png" # Estimated depth
+        self.depth_format = "{}.{}.{}.png" # Estimated depth,
         self.mask_format = "{}.{}.m.png"
 
         self.pick = []
@@ -151,11 +151,12 @@ class SubDataSet(object):
     def get_image_anno(self, video, track, frame):
         frame = "{:06d}".format(frame)
         image_path = join(self.root, video, self.path_format.format(frame, track, 'x'))
+        depth_path = join(self.root, video, self.depth_format.format(frame, track, 'x'))
         image_anno = self.labels[video][track][frame]
 
         mask_path = join(self.root, video, self.mask_format.format(frame, track))
 
-        return image_path, image_anno, mask_path
+        return image_path, image_anno, mask_path, depth_path
 
     def get_positive_pair(self, index):
         video_name = self.videos[index]
@@ -256,11 +257,18 @@ class Augmentation:
             image = cv2.filter2D(image, -1, kernel)
         return image
 
-    def __call__(self, image, bbox, size, gray=False, mask=None):
+    def __call__(self, image, bbox, size, gray=False, mask=None, depth=None):
         if gray:
             grayed = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             image = np.zeros((grayed.shape[0], grayed.shape[1], 3), np.uint8)
             image[:, :, 0] = image[:, :, 1] = image[:, :, 2] = grayed
+
+            # depth
+            if not depth is None:
+                grayed_d = cv2.cvtColor(depth, cv2.COLOR_BGR2GRAY)
+                depth = np.zeros((grayed_d.shape[0], grayed_d.shape[1], 3), np.uint8)
+                depth[:, :, 0] = depth[:, :, 1] = depth[:, :, 2] = grayed_d
+
 
         shape = image.shape
 
@@ -288,14 +296,21 @@ class Augmentation:
         image = crop_hwc(image, crop_bbox, size)
         if not mask is None:
             mask = crop_hwc(mask, crop_bbox, size)
+        if not depth is None:
+            depth = crop_hwc(depth, crop_bbox, size)
 
         offset = np.dot(self.rgbVar, np.random.randn(3, 1))
         offset = offset[::-1]  # bgr 2 rgb
         offset = offset.reshape(3)
         image = image - offset
 
+        if not depth is None:
+            depth = depth - offset
+
         if self.blur > random.random():
             image = self.blur_image(image)
+            if not depth is None:
+                depth = self.blur_image(depth)
 
         if self.resize:
             imageSize = image.shape[:2]
@@ -303,14 +318,19 @@ class Augmentation:
             rand_size = (int(round(ratio*imageSize[0])), int(round(ratio*imageSize[1])))
             image = cv2.resize(image, rand_size)
             image = cv2.resize(image, tuple(imageSize))
+            if not depth is None:
+                depth = cv2.resize(depth, rand_size)
+                depth = cv2.resize(depth, tuple(imageSize))
 
         if self.flip and self.flip > Augmentation.random():
             image = cv2.flip(image, 1)
             mask = cv2.flip(mask, 1)
+            if not depth is None:
+                depth = cv2.flip(depth, 1)
             width = image.shape[1]
             bbox = Corner(width - 1 - bbox.x2, bbox.y1, width - 1 - bbox.x1, bbox.y2)
 
-        return image, bbox, mask
+        return image, bbox, mask, depth
 
 
 class AnchorTargetLayer:
@@ -477,8 +497,14 @@ class DataSets(Dataset):
                 }
         logger.info('dataset informations: \n{}'.format(json.dumps(self.infos, indent=4)))
 
-    def imread(self, path):
-        img = cv2.imread(path)
+    def imread(self, path, is_depth=False, is_colormap=True):
+        if is_depth:
+            img = cv2.imread(path, -1) # Estimated depth, range[0, 1]
+            img = np.asarray(img*255, dtype=np.uint8)
+            if is_colormap:
+                img = cv2.applyColorMap(img, cv2.COLORMAP_JET)
+        else:
+            img = cv2.imread(path)
 
         if self.origin_size == self.template_size:
             return img, 1.0
@@ -527,7 +553,7 @@ class DataSets(Dataset):
         if neg:
             template = dataset.get_random_target(index)
             if self.inner_neg and self.inner_neg > random.random():
-                search = dataset.get_random_target()
+                search = dataset.get_random_target() # image_path, image_anno, mask_path, depth_path
             else:
                 search = random.choice(self.all_data).get_random_target()
         else:
@@ -542,11 +568,14 @@ class DataSets(Dataset):
             return img[l:r, l:r]
 
         template_image, scale_z = self.imread(template[0])
+        template_depth, _ = self.imread(template[3], is_depth=True, is_colormap=True)
 
         if self.template_small:
             template_image = center_crop(template_image, self.template_size)
+            template_depth = center_crop(template_depth, self.template_size)
 
         search_image, scale_x = self.imread(search[0])
+        search_depth, _ = self.imread(search[3], is_depth=True, is_colormap=True)
 
         if dataset.has_mask and not neg:
             search_mask = (cv2.imread(search[2], 0) > 0).astype(np.float32)
@@ -581,6 +610,9 @@ class DataSets(Dataset):
         template, _, _ = self.template_aug(template_image, template_box, self.template_size, gray=gray)
         search, bbox, mask = self.search_aug(search_image, search_box, self.search_size, gray=gray, mask=search_mask)
 
+        template_d, _, _ = self.template_aug(template_depth, template_box, self.template_size, gray=gray)
+        search_d, _, _ = self.search_aug(search_depth, search_box, self.search_size, gray=gray, mask=search_mask)
+
         def draw(image, box, name):
             image = image.copy()
             x1, y1, x2, y2 = map(lambda x: int(round(x)), box)
@@ -590,8 +622,12 @@ class DataSets(Dataset):
         if debug:
             draw(template_image, template_box, "debug/{:06d}_ot.jpg".format(index))
             draw(search_image, search_box, "debug/{:06d}_os.jpg".format(index))
+            draw(template_depth, template_box, "debug/{:06d}_ot_d.jpg".format(index))
+            draw(search_depth, search_box, "debug/{:06d}_os_d.jpg".format(index))
             draw(template, _, "debug/{:06d}_t.jpg".format(index))
             draw(search, bbox, "debug/{:06d}_s.jpg".format(index))
+            draw(template_d, _, "debug/{:06d}_t_d.jpg".format(index))
+            draw(search_d, bbox, "debug/{:06d}_s_d.jpg".format(index))
 
         cls, delta, delta_weight = self.anchor_target(self.anchors, bbox, self.size, neg)
         if dataset.has_mask and not neg:
@@ -599,9 +635,10 @@ class DataSets(Dataset):
         else:
             mask_weight = np.zeros([1, cls.shape[1], cls.shape[2]], dtype=np.float32)
 
-        template, search = map(lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search])
+        template, search, template_d, search_d = map(lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search, template_d, search_d])
 
         mask = (np.expand_dims(mask, axis=0) > 0.5) * 2 - 1  # 1*H*W
 
         return template, search, cls, delta, delta_weight, np.array(bbox, np.float32), \
-               np.array(mask, np.float32), np.array(mask_weight, np.float32)
+               np.array(mask, np.float32), np.array(mask_weight, np.float32), \
+               template_d, search_d
