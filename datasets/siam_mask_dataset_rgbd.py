@@ -544,7 +544,7 @@ class DataSets(Dataset):
             if dataset.start + dataset.num > index:
                 return dataset, index - dataset.start
 
-    def __getitem__(self, index, debug=False):
+    def __getitem__(self, index, debug=True): # False):
         index = self.pick[index]
         dataset, index = self.find_dataset(index)
 

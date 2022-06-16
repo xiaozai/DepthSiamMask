@@ -89,6 +89,65 @@ class MaskCorr(Mask):
     def forward(self, z, x):
         return self.mask(z, x)
 
+''' From ICCV2017
+RDFNet: RGB-D Multi-level Residual Feature Fusion for Indoor Semantic Segmentation
+
+pytorch code :
+https://github.com/charlesCXK/PyTorch_Semantic_Segmentation/blob/master/RDFNet_PyTorch/blocks.py
+'''
+class ResidualConvUnit(nn.Module):
+    def __init__(self, features):
+        super().__init__()
+
+        self.conv1 = nn.Conv2d(
+            features, features, kernel_size=3, stride=1, padding=1, bias=True)
+        self.conv2 = nn.Conv2d(
+            features, features, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+
+        out = self.relu(x)
+        out = self.conv1(out)
+        out = self.relu(out)
+        out = self.conv2(out)
+
+        return out + x
+
+class MMF(nn.Module):
+    def __init__(self, feature_in=256):
+        super(MMF, self).__init__()
+
+        self.feature_in = feature_in
+        self.downchannel = feature_in // 2
+        self.relu = nn.ReLU(inplace=True)
+
+        self.rgb_feature= nn.Sequential(
+            nn.Conv2d(self.feature_in, self.downchannel, kernel_size=1, stride=1, padding=0, bias=False),
+            ResidualConvUnit(self.downchannel),
+            ResidualConvUnit(self.downchannel),
+            nn.Conv2d(self.downchannel, self.feature_in, kernel_size=3, stride=1, padding=1, bias=False)
+        )
+
+        self.depth_feature= nn.Sequential(
+            nn.Conv2d(self.feature_in, self.downchannel, kernel_size=1, stride=1, padding=0, bias=False),
+            ResidualConvUnit(self.downchannel),
+            ResidualConvUnit(self.downchannel),
+            nn.Conv2d(self.downchannel, self.feature_in, kernel_size=3, stride=1, padding=1, bias=False)
+        )
+
+        self.ResidualPool = nn.Sequential(
+            nn.MaxPool2d(kernel_size=5, stride=1, padding=2),
+            nn.Conv2d(self.feature_in, self.feature_in, kernel_size=3, stride=1, padding=1, bias=False)
+        )
+
+
+    def forward(self, f_rgb, f_d):
+        f_rgb = self.rgb_feature(f_rgb)
+        f_d = self.depth_feature(f_d)
+        fusion = self.relu(f_rgb + f_d)
+        x = self.ResidualPool(fusion)
+        return fusion + x
 
 class Custom(SiamMask):
     def __init__(self, pretrain=False, **kwargs):
@@ -119,6 +178,7 @@ class Custom_RGBD(SiamMask):
         self.features = ResDown(pretrain=pretrain)
         self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
         self.mask_model = MaskCorr()
+        self.fusion_model = MMF(feature_in=256)
 
     def template(self, template, template_d):
         zf = self.features(template)

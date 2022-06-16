@@ -128,6 +128,7 @@ data/DAVIS*
 data/tennis/*.jpg
 data/trackdat/*
 data/VOT*/*
+data/VOT2021RGBD/*
 data/DAVIS*/*
 data/coco/*.json
 data/coco/annotations/*

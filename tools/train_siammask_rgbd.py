@@ -140,7 +140,7 @@ def main():
 
     if args.arch == 'Custom':
         from custom import Custom_RGBD
-        model = Custom(pretrain=True, anchors=cfg['anchors'])
+        model = Custom_RGBD(pretrain=True, anchors=cfg['anchors'])
     else:
         exit()
     logger.info(model)
