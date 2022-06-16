@@ -103,6 +103,7 @@ def convert_ytb_vos(data_dir, out_dir):
             instanceIds = []
             for frame in frames:
                 file_name = join(video, frame)
+                depth_file_name = join(video, 'depth', frame) #
                 fullname = os.path.join(ann_dir, file_name+'.png')
                 img = cv2.imread(fullname, 0)
                 h, w = img.shape[:2]
@@ -136,6 +137,7 @@ def convert_ytb_vos(data_dir, out_dir):
                     ann['h'] = h
                     ann['w'] = w
                     ann['file_name'] = file_name
+                    ann['depth_name'] = depth_file_name
                     ann['id'] = int(objId)
                     # ann['segmentation'] = obj['contours']
                     # ann['iscrowd'] = 0

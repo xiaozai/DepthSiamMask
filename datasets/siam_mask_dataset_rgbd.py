@@ -151,7 +151,7 @@ class SubDataSet(object):
     def get_image_anno(self, video, track, frame):
         frame = "{:06d}".format(frame)
         image_path = join(self.root, video, self.path_format.format(frame, track, 'x'))
-        depth_path = join(self.root, video, self.depth_format.format(frame, track, 'x'))
+        depth_path = join(self.root, video, self.depth_format.format(frame, track, 'd'))
         image_anno = self.labels[video][track][frame]
 
         mask_path = join(self.root, video, self.mask_format.format(frame, track))
@@ -500,7 +500,8 @@ class DataSets(Dataset):
     def imread(self, path, is_depth=False, is_colormap=True):
         if is_depth:
             img = cv2.imread(path, -1) # Estimated depth, range[0, 1]
-            img = np.asarray(img*255, dtype=np.uint8)
+            img= cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX)
+            img = np.asarray(img, dtype=np.uint8)
             if is_colormap:
                 img = cv2.applyColorMap(img, cv2.COLORMAP_JET)
         else:

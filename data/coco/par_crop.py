@@ -81,6 +81,8 @@ def crop_img(img, anns, set_crop_base_path, set_img_base_path,
     if not isdir(frame_crop_base_path): makedirs(frame_crop_base_path)
 
     im = cv2.imread('{}/{}'.format(set_img_base_path, img['file_name']))
+    dp = cv2.imread('{}/depth/{}'.format(set_img_base_path, img['file_name'][:-4]+'.png'), -1)
+
     avg_chans = np.mean(im, axis=(0, 1))
     for track_id, ann in enumerate(anns):
         rect = ann['bbox']
@@ -91,6 +93,10 @@ def crop_img(img, anns, set_crop_base_path, set_img_base_path,
         x = crop_like_SiamFCx(im, bbox, exemplar_size=exemplar_size, context_amount=context_amount,
                               search_size=search_size, padding=avg_chans)
         cv2.imwrite(join(frame_crop_base_path, '{:06d}.{:02d}.x.jpg'.format(0, track_id)), x)
+
+        d = crop_like_SiamFCx(dp, bbox, exemplar_size=exemplar_size, context_amount=context_amount,
+                              search_size=search_size, padding=0)
+        cv2.imwrite(join(frame_crop_base_path, '{:06d}.{:02d}.d.png'.format(0, track_id)), d)
 
         if enable_mask:
             im_mask = coco.annToMask(ann).astype(np.float32)

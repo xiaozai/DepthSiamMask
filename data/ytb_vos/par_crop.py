@@ -92,10 +92,13 @@ def crop_video(video, v, crop_path, data_path, instanc_size):
     for trackid, o in enumerate(list(v)):
         obj = v[o]
         for frame in obj:
-            file_name = frame['file_name']
+            file_name = frame['file_name'] # video/img_name , such as 20345/0005
+            depth_name = frame['depth_file_name'] # video/depth/img_name
             ann_path = join(anno_base_path, file_name+'.png')
             img_path = join(img_base_path, file_name+'.jpg')
+            depth_path = join(img_base_path, depth_file_name+'.png')
             im = cv2.imread(img_path)
+            dp = cv2.imread(depth_path, -1)
             label = cv2.imread(ann_path, 0)
             avg_chans = np.mean(im, axis=(0, 1))
             bbox = frame['bbox']
@@ -103,6 +106,10 @@ def crop_video(video, v, crop_path, data_path, instanc_size):
             bbox[3] += bbox[1]
             x = crop_like_SiamFCx(im, bbox, instanc_size=instanc_size, padding=avg_chans)
             cv2.imwrite(join(video_crop_base_path, '{:06d}.{:02d}.x.jpg'.format(int(file_name.split('/')[-1]), trackid)), x)
+
+            d = crop_like_SiamFCx(dp, bbox, instanc_size=instanc_size, padding=0)
+            cv2.imwrite(join(video_crop_base_path, '{:06d}.{:02d}.d.png'.format(int(file_name.split('/')[-1]), trackid)), d)
+            
             mask = crop_like_SiamFCx((label==int(o)).astype(np.float32), bbox, instanc_size=instanc_size, padding=0)
             mask = ((mask > 0.2)*255).astype(np.uint8)
             x[:,:,0] = mask + (mask == 0)*x[:,:,0]

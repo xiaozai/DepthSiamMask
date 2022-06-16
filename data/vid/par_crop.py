@@ -99,6 +99,14 @@ def crop_video(sub_set, video, crop_path, instanc_size):
         filename = xmltree.findall('filename')[0].text
 
         im = cv2.imread(xml.replace('xml', 'JPEG').replace('Annotations', 'Data'))
+        #.. /vid/ILSVRC2015/Annotations/VID/train/ILSVRC2015_VID_train_0003/ILSVRC2015_train_00023003/00000.xml
+        #.. /vid/ILSVRC2015/Data/VID/train/ILSVRC2015_VID_train_0003/ILSVRC2015_train_00023003/00000.png
+        dp_filename = xml.replace('xml', 'png').replace('Annotations', 'Data')
+        dp_filename = dp_filename.split('/')
+        dp_filename[-1] = 'depth/' + dp_filename[-1]
+        dp_filename = '/'.join(dp_filename)
+        dp = cv2.imread(dp_filename, -1)
+
         avg_chans = np.mean(im, axis=(0, 1))
         for object_iter in objects:
             trackid = int(object_iter.find('trackid').text)
@@ -114,6 +122,9 @@ def crop_video(sub_set, video, crop_path, instanc_size):
 
             x = crop_like_SiamFCx(im, bbox, instanc_size=instanc_size, padding=avg_chans)
             cv2.imwrite(join(video_crop_base_path, '{:06d}.{:02d}.x.jpg'.format(int(filename), trackid)), x)
+
+            d = crop_like_SiamFCx(dp, bbox, instanc_size=instanc_size, padding=0)
+            cv2.imwrite(join(video_crop_base_path, '{:06d}.{:02d}.d.png'.format(int(filename), trackid)), d)
 
 
 def main(instanc_size=511, num_threads=24):
