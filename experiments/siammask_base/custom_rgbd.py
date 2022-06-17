@@ -1,4 +1,4 @@
-from models.siammask_rgbd import SiamMask
+from models.siammask_rgbd import SiamMask # Song, 
 from models.features import MultiStageFeature
 from models.rpn import RPN, DepthCorr
 from models.mask import Mask
@@ -141,6 +141,10 @@ class MMF(nn.Module):
             nn.Conv2d(self.feature_in, self.feature_in, kernel_size=3, stride=1, padding=1, bias=False)
         )
 
+        for modules in [self.rgb_feature, self.depth_feature, self.ResidualPool]:
+            for l in modules.modules():
+                if isinstance(l, nn.Conv2d):
+                    nn.init.kaiming_uniform_(l.weight, a=1)
 
     def forward(self, f_rgb, f_d):
         f_rgb = self.rgb_feature(f_rgb)
@@ -149,26 +153,26 @@ class MMF(nn.Module):
         x = self.ResidualPool(fusion)
         return fusion + x
 
-class Custom(SiamMask):
-    def __init__(self, pretrain=False, **kwargs):
-        super(Custom, self).__init__(**kwargs)
-        self.features = ResDown(pretrain=pretrain)
-        self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
-        self.mask_model = MaskCorr()
-
-    def template(self, template):
-        self.zf = self.features(template)
-
-    def track(self, search):
-        search = self.features(search)
-        rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
-        return rpn_pred_cls, rpn_pred_loc
-
-    def track_mask(self, search):
-        search = self.features(search)
-        rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
-        pred_mask = self.mask(self.zf, search)
-        return rpn_pred_cls, rpn_pred_loc, pred_mask
+# class Custom(SiamMask):
+#     def __init__(self, pretrain=False, **kwargs):
+#         super(Custom, self).__init__(**kwargs)
+#         self.features = ResDown(pretrain=pretrain)
+#         self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
+#         self.mask_model = MaskCorr()
+#
+#     def template(self, template):
+#         self.zf = self.features(template)
+#
+#     def track(self, search):
+#         search = self.features(search)
+#         rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
+#         return rpn_pred_cls, rpn_pred_loc
+#
+#     def track_mask(self, search):
+#         search = self.features(search)
+#         rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
+#         pred_mask = self.mask(self.zf, search)
+#         return rpn_pred_cls, rpn_pred_loc, pred_mask
 
 
 

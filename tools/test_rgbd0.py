@@ -682,7 +682,7 @@ def main():
 
     # setup model
     if args.arch == 'Custom':
-        from custom import Custom_RGBD # same as Custom
+        from custom import Custom_RGBD
         # from custom_rgbd import Custom_RGBD
         model = Custom_RGBD(anchors=cfg['anchors']) # depth_resnet pretrain ?
     else:

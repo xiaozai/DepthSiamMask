@@ -18,7 +18,7 @@ from utils.log_helper import init_log, print_speed, add_file_handler, Dummy
 from utils.load_helper import load_pretrain, restore_from
 from utils.average_meter_helper import AverageMeter
 
-from datasets.siam_mask_dataset_rgbd import DataSets
+from datasets.siam_mask_dataset_rgbd import DataSets # Song, RGBD datasets
 
 from utils.lr_helper import build_lr_scheduler
 from tensorboardX import SummaryWriter
@@ -139,7 +139,7 @@ def main():
     train_loader, val_loader = build_data_loader(cfg)
 
     if args.arch == 'Custom':
-        from custom import Custom_RGBD
+        from custom_rgbd import Custom_RGBD
         model = Custom_RGBD(pretrain=True, anchors=cfg['anchors'])
     else:
         exit()

@@ -3,7 +3,7 @@ cat << EOF
 Usage:
     ${0##*/} [-h/--help] [-s/--start] [-e/--end] [-d/--dataset] [-m/--model]  [-g/--gpu]
     e.g.
-        bash ${0##*/} -s 1 -e 20 -d VOT2018 -g 4 # for test models
+        bash ${0##*/} -s 1 -e 20 -d VOT2021RGBD -g 4 # for test models
         bash ${0##*/} -m snapshot/checkpoint_e10.pth -n 8 -g 4 # for tune models
 EOF
 }
@@ -65,19 +65,24 @@ if [ -z "$model" ]; then
     echo test snapshot $START ~ $END on dataset $dataset with $GPU gpus.
     for i in $(seq $START $END)
     do
-        bash test.sh snapshot/checkpoint_e$i.pth $dataset $(($i % $GPU)) &
+        bash test_rgbd.sh snapshot/checkpoint_e$i.pth $dataset $(($i % $GPU)) &
     done
     wait
 
-    python $ROOT/tools/eval.py --dataset $dataset --num 20 --tracker_prefix C --result_dir ./test/$dataset 2>&1 | tee logs/eval_test_$dataset.log
+    # calculate the accuracy
+    # python $ROOT/tools/eval.py --dataset $dataset --num 20 --tracker_prefix C --result_dir ./test/$dataset 2>&1 | tee logs/eval_test_$dataset.log
+
+    # use vot toolkit
+    # vot analysis --workspace /home/sgn/Data1/yan/ ...
 else
     echo tuning $model on dataset $dataset with $NUM jobs in $GPU gpus.
     for i in $(seq 1 $NUM)
     do
-        bash tune.sh $model $dataset $(($i % $GPU)) &
+        bash tune_rgbd.sh $model $dataset $(($i % $GPU)) &
     done
     wait
     rm finish.flag
 
-    python $ROOT/tools/eval.py --dataset $dataset --num 20 --tracker_prefix C  --result_dir ./result/$dataset 2>&1 | tee logs/eval_tune_$dataset.log
+    # calculate the accuracy
+    # python $ROOT/tools/eval.py --dataset $dataset --num 20 --tracker_prefix C  --result_dir ./result/$dataset 2>&1 | tee logs/eval_tune_$dataset.log
 fi

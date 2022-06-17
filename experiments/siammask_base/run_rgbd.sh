@@ -10,4 +10,4 @@ python -u $ROOT/tools/train_siammask_rgbd.py \
     --log logs/log.txt \
     2>&1 | tee logs/train.log
 
-bash test_all.sh -s 1 -e 20 -d VOT2021RGBD -g 2 # 4
+bash test_all_rgbd.sh -s 1 -e 20 -d VOT2021RGBD -g 2 # 4

@@ -228,7 +228,7 @@ class ResNet(nn.Module):
         p3 = self.layer3(p2)
         # p3 = torch.cat([p2, p3], 1)
 
-        log_once("p3 {}".format(p3.size()))
+        # log_once("p3 {}".format(p3.size()))
         p4 = self.layer4(p3)
 
         return p2, p3, p4
@@ -357,4 +357,3 @@ if __name__ == '__main__':
     var = Variable(var)
 
     net(var)
-
