@@ -108,6 +108,7 @@ experiments/siammask_sharp/*.pth.1
 experiments/siammask_sharp/test/*
 *.DS_Store
 experiments/siammask_base/*.model
+experiments/siammask_base/VOT2021RGBD/*
 experiments/siammask_sharp/*.model
 experiments/siammask_sharp/log*
 experiments/siammask_sharp/*.txt
@@ -135,6 +136,7 @@ data/coco/annotations/*
 data/coco/train2017/*
 data/coco/val2017/*
 data/coco/*.zip
+data/coco/*.tar.xz
 data/coco/crop511/*
 data/vid/*.tar.gz
 data/vid/ILSVRC2015/*

@@ -13,6 +13,7 @@ from os.path import join
 from utils.bbox_helper import *
 from utils.anchors import Anchors
 import math
+import os
 import sys
 pyv = sys.version[0]
 import cv2
@@ -544,7 +545,7 @@ class DataSets(Dataset):
             if dataset.start + dataset.num > index:
                 return dataset, index - dataset.start
 
-    def __getitem__(self, index, debug=True): # False): # Song, check the training data
+    def __getitem__(self, index, debug=False):
         index = self.pick[index]
         dataset, index = self.find_dataset(index)
 
@@ -608,11 +609,10 @@ class DataSets(Dataset):
         template_box = toBBox(template_image, template[1])
         search_box = toBBox(search_image, search[1])
 
-        template, _, _ = self.template_aug(template_image, template_box, self.template_size, gray=gray)
-        search, bbox, mask = self.search_aug(search_image, search_box, self.search_size, gray=gray, mask=search_mask)
-
-        template_d, _, _ = self.template_aug(template_depth, template_box, self.template_size, gray=gray)
-        search_d, _, _ = self.search_aug(search_depth, search_box, self.search_size, gray=gray, mask=search_mask)
+        template, _, _, template_d = self.template_aug(template_image, template_box, self.template_size,
+                                                    gray=gray, depth=template_depth)
+        search, bbox, mask, search_d = self.search_aug(search_image, search_box, self.search_size,
+                                                    gray=gray, mask=search_mask, depth=search_depth)
 
         def draw(image, box, name):
             image = image.copy()
@@ -621,14 +621,17 @@ class DataSets(Dataset):
             cv2.imwrite(name, image)
 
         if debug:
-            draw(template_image, template_box, "debug/{:06d}_ot.jpg".format(index))
-            draw(search_image, search_box, "debug/{:06d}_os.jpg".format(index))
-            draw(template_depth, template_box, "debug/{:06d}_ot_d.jpg".format(index))
-            draw(search_depth, search_box, "debug/{:06d}_os_d.jpg".format(index))
-            draw(template, _, "debug/{:06d}_t.jpg".format(index))
-            draw(search, bbox, "debug/{:06d}_s.jpg".format(index))
-            draw(template_d, _, "debug/{:06d}_t_d.jpg".format(index))
-            draw(search_d, bbox, "debug/{:06d}_s_d.jpg".format(index))
+            debug_path = '/home/sgn/Data1/yan/DepthSiamMask/debug/'
+            if not os.path.isdir(debug_path):
+                os.mkdir(debug_path)
+            draw(template_image, template_box, debug_path+"{:06d}_ot.jpg".format(index))
+            draw(search_image, search_box, debug_path+"{:06d}_os.jpg".format(index))
+            draw(template_depth, template_box, debug_path+"{:06d}_ot_d.jpg".format(index))
+            draw(search_depth, search_box, debug_path+"debug/{:06d}_os_d.jpg".format(index))
+            draw(template, [0, 0, 0, 0], debug_path+"{:06d}_t.jpg".format(index))
+            draw(search, bbox, debug_path+"{:06d}_s.jpg".format(index))
+            draw(template_d, [0, 0, 0, 0], debug_path+"{:06d}_t_d.jpg".format(index))
+            draw(search_d, bbox, debug_path+"{:06d}_s_d.jpg".format(index))
 
         cls, delta, delta_weight = self.anchor_target(self.anchors, bbox, self.size, neg)
         if dataset.has_mask and not neg:

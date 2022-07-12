@@ -65,7 +65,7 @@ if [ -z "$model" ]; then
     echo test snapshot $START ~ $END on dataset $dataset with $GPU gpus.
     for i in $(seq $START $END)
     do
-        bash test_rgbd.sh snapshot/checkpoint_e$i.pth $dataset $(($i % $GPU)) &
+        bash test_rgbd.sh snapshot_RGB/checkpoint_e$i.pth $dataset $(($i % $GPU)) &
     done
     wait
 

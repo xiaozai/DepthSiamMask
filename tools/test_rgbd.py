@@ -33,7 +33,7 @@ from scipy.signal import find_peaks
 thrs = np.arange(0.3, 0.5, 0.05)
 
 parser = argparse.ArgumentParser(description='Test SiamMask')
-parser.add_argument('--arch', dest='arch', default='', choices=['Custom',],
+parser.add_argument('--arch', dest='arch', default='', choices=['Custom', 'Custom_RGBD'],
                     help='architecture of pretrained model')
 parser.add_argument('--config', dest='config', required=True, help='hyper-parameter for SiamMask')
 parser.add_argument('--resume', default='', type=str, required=True,
@@ -50,7 +50,7 @@ parser.add_argument('--gt', action='store_true', help='whether use gt rect for d
 parser.add_argument('--video', default='', type=str, help='test special video')
 parser.add_argument('--cpu', action='store_true', help='cpu mode')
 parser.add_argument('--debug', action='store_true', help='debug mode')
-
+parser.add_argument('--result_path', default='test', help='debug mode')
 
 def to_torch(ndarray):
     if type(ndarray).__module__ == 'numpy':
@@ -351,11 +351,15 @@ def get_target_depth(depth, bbox, min_depth=0, max_depth=10000):
         return np.median(depth[depth>0])
 
 def depth_processing(depth, min_depth=0, max_depth=10000, is_colormap=True):
-    depth[depth<min_depth] = min_depth
-    depth[depth>max_depth] = max_depth
-    depth = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
-    if is_colormap:
-        depth = cv2.applyColorMap(np.asarray(depth, dtype=np.uint8), cv2.COLORMAP_JET)
+    try:
+        depth[depth<min_depth] = min_depth
+        depth[depth>max_depth] = max_depth
+        depth = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
+        if is_colormap:
+            depth = cv2.applyColorMap(np.asarray(depth, dtype=np.uint8), cv2.COLORMAP_JET)
+    except Exception as e:
+        print(e)
+        
     return depth
 
 def mask_2_rect(mask):
@@ -374,40 +378,48 @@ def mask_2_rect(mask):
     return rect
 
 def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False, device='cpu'):
-    regions = []  # result and states[1 init / 2 lost / 0 skip]
+    regions = []  # polygon result and states[1 init / 2 lost / 0 skip]
     bboxes = []   # axis-aligned bbox
-    scores = []
+    scores = []   # confidence
     times = []
 
     image_files, depth_files, gt = video['image_files'], video['depth_files'], video['gt']
 
     start_frame, end_frame, lost_times, toc = 0, len(image_files), 0, 0
 
+    target_depth_min = 0
+    target_depth_max = 10000
+
     for f, rgbd_files in enumerate(zip(image_files, depth_files)):
         image_file, depth_file = rgbd_files[0], rgbd_files[1]
         im = cv2.imread(image_file)
         dp = cv2.imread(depth_file, -1)
+
+        # if f == start_frame:
+            # target_depth = get_target_depth(dp, gt[f])
+            # target_depth_min = max(0, target_depth - 2000)
+            # target_depth_max = target_depth + 2000
+
+        dp = depth_processing(dp, min_depth=target_depth_min, max_depth=target_depth_max, is_colormap=True)
+
         tic = cv2.getTickCount()
+
         if f == start_frame:  # init
             cx, cy, w, h = get_axis_aligned_bbox(gt[f])
             target_pos = np.array([cx, cy])
             target_sz = np.array([w, h])
 
-            target_depth = get_target_depth(dp, gt[f])
-            target_depth_min = max(0, target_depth - 2000)
-            target_depth_max = target_depth + 2000
-            dp = depth_processing(dp, min_depth=target_depth_min, max_depth=target_depth_max, is_colormap=True)
-
             state = siamese_init(im, dp, target_pos, target_sz, model, hp, device)  # init tracker
             location = cxy_wh_2_rect(state['target_pos'], state['target_sz'])
             rect = location
 
-            regions.append(1 if 'VOT' in args.dataset else gt[f])
-            bboxes.append(1)
-            scores.append(1)
-        elif f > start_frame:  # tracking
-            dp = depth_processing(dp, min_depth=target_depth_min, max_depth=target_depth_max, is_colormap=True)
+            regions.append(1 if 'VOT' in args.dataset else gt[f]) # init
+            bboxes.append(1 if 'VOT' in args.dataset else gt[f])
+            scores.append(1.0)
+
+        elif f > start_frame:  # track
             state = siamese_track(state, im, dp, mask_enable, refine_enable, device, args.debug)  # track
+
             if mask_enable:
                 location = state['ploygon'].flatten()
                 mask = state['mask']
@@ -417,39 +429,21 @@ def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False, dev
             else:
                 location = cxy_wh_2_rect(state['target_pos'], state['target_sz'])
                 mask = []
-                rect = location
-
-            if 'VOT' in args.dataset:
-                gt_polygon = ((gt[f][0], gt[f][1]), (gt[f][2], gt[f][3]),
-                              (gt[f][4], gt[f][5]), (gt[f][6], gt[f][7]))
-                if mask_enable:
-                    pred_polygon = ((location[0], location[1]), (location[2], location[3]),
-                                    (location[4], location[5]), (location[6], location[7]))
-                else:
-                    pred_polygon = ((location[0], location[1]),
-                                    (location[0] + location[2], location[1]),
-                                    (location[0] + location[2], location[1] + location[3]),
-                                    (location[0], location[1] + location[3]))
-                b_overlap = vot_overlap(gt_polygon, pred_polygon, (im.shape[1], im.shape[0]))
-            else:
-                b_overlap = 1
+                rect = location.copy()
 
             regions.append(location)
             bboxes.append(rect)
-            scores.append(state['score']) if 'score' in state and state['score'] > 0.05 else 0
 
-            if not b_overlap:
-                lost_times += 1
+            if 'score' in state:
+                scores.append(state['score'])
+            else:
+                scores.append(0)
+        #
+        # else:  # skip, during new start_frame, only for ST settings
+        #     regions.append(0)
+        #     bboxes.append(0)
+        #     scores.append(0)
 
-            # LT settings does not need restarts
-            # if b_overlap:
-            #     regions.append(location)
-            # else:  # lost
-            #     regions.append(2)
-            #     lost_times += 1
-            #     start_frame = f + 5  # skip 5 frames
-        else:  # skip
-            regions.append(0)
         # toc += cv2.getTickCount() - tic
         t_ = cv2.getTickCount() - tic
         toc += t_
@@ -491,7 +485,7 @@ def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False, dev
                               (location[0] + location[2], location[1] + location[3]), (0, 255, 255), 3)
 
             cv2.putText(im_show, str(f), (40, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-            cv2.putText(im_show, str(lost_times), (40, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            # cv2.putText(im_show, str(lost_times), (40, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             cv2.putText(im_show, str(state['score']) if 'score' in state else '', (40, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
             cv2.imshow(video['name'], cv2.hconcat([im_show, dp_show, mask_show] if mask_show is not None else [im_show, dp_show]))
@@ -502,9 +496,13 @@ def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False, dev
     name = args.arch.split('.')[0] + '_' + ('mask_' if mask_enable else '') + ('refine_' if refine_enable else '') +\
            args.resume.split('/')[-1].split('.')[0]
 
+
     if 'VOT' in args.dataset:
-        video_path = join('test', args.dataset, name,
-                          'rgbd-unsupervised', video['name'])
+        print(video['name'], ' , num of bboxes and scores:', len(bboxes), len(scores))
+        assert len(bboxes) == len(scores)
+
+        # video_path = join('test', args.dataset, name, 'rgbd-unsupervised', video['name'])
+        video_path = join(args.result_path, args.dataset, name, 'rgbd-unsupervised', video['name'])
         if not isdir(video_path): makedirs(video_path)
 
         # Rotated BBox
@@ -514,29 +512,30 @@ def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False, dev
                 fin.write("{:d}\n".format(x)) if isinstance(x, int) else \
                         fin.write(','.join([vot_float2str("%.4f", i) for i in x]) + '\n')
 
+        # Axis-aligned BBox
         rect_path = join(video_path, '{:s}_001.txt'.format(video['name']))
         with open(rect_path, "w") as fin:
-            for x in bboxes:
-                fin.write("{:d}\n".format(x)) if isinstance(x, int) else \
-                        fin.write(','.join([vot_float2str("%.1f", i) for i in x]) + '\n')
+            fin.write("1\n")
+            for box in bboxes[1:]:
+                fin.write("%d,%d,%d,%d\n"%(box[0], box[1], box[2], box[3]))
 
         conf_path = join(video_path, '{:s}_001_confidence.value'.format(video['name']))
         with open(conf_path, "w") as fin:
-            for x in scores:
-                fin.write("{:f}\n".format(x))
+            for s in scores:
+                fin.write("{:f}\n".format(s))
 
         time_path = join(video_path, '{:s}_001_time.value'.format(video['name']))
         with open(time_path, "w") as fin:
-            for x in times:
-                fin.write("{:f}\n".format(x))
+            for t in times:
+                fin.write("{:f}\n".format(t))
 
-    else:  # OTB
-        video_path = join('test', args.dataset, name)
-        if not isdir(video_path): makedirs(video_path)
-        result_path = join(video_path, '{:s}.txt'.format(video['name']))
-        with open(result_path, "w") as fin:
-            for x in regions:
-                fin.write(','.join([str(i) for i in x])+'\n')
+    # else:  # OTB
+    #     video_path = join('test', args.dataset, name)
+    #     if not isdir(video_path): makedirs(video_path)
+    #     result_path = join(video_path, '{:s}.txt'.format(video['name']))
+    #     with open(result_path, "w") as fin:
+    #         for x in regions:
+    #             fin.write(','.join([str(i) for i in x])+'\n')
 
     logger.info('({:d}) Video: {:12s} Time: {:02.1f}s Speed: {:3.1f}fps Lost: {:d}'.format(
         v_id, video['name'], toc, f / toc, lost_times))
@@ -682,15 +681,17 @@ def main():
 
     # setup model
     if args.arch == 'Custom':
-        from custom import Custom_RGBD # same as Custom
-        # from custom_rgbd import Custom_RGBD
-        model = Custom_RGBD(anchors=cfg['anchors']) # depth_resnet pretrain ?
+        from custom import Custom # RGB
+        model = Custom(anchors=cfg['anchors'])
+    elif args.arch == 'Custom_RGBD':
+        from custom_rgbd import Custom_RGBD
+        model = Custom_RGBD(anchors=cfg['anchors'])
     else:
         parser.error('invalid architecture: {}'.format(args.arch))
 
     if args.resume:
         assert isfile(args.resume), '{} is not a valid file'.format(args.resume)
-        model = load_pretrain(model, args.resume) # Song, depth_features.features weight missing,
+        model = load_pretrain(model, args.resume)
     model.eval()
     device = torch.device('cuda' if (torch.cuda.is_available() and not args.cpu) else 'cpu')
     model = model.to(device)

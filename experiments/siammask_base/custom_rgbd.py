@@ -1,4 +1,4 @@
-from models.siammask_rgbd import SiamMask # Song, 
+from models.siammask_rgbd import SiamMask # Song,
 from models.features import MultiStageFeature
 from models.rpn import RPN, DepthCorr
 from models.mask import Mask

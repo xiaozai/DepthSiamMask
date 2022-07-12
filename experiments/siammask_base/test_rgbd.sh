@@ -18,4 +18,5 @@ CUDA_VISIBLE_DEVICES=$gpu python -u $ROOT/tools/test_rgbd.py \
     --config config.json \
     --resume $model \
     --mask \
+    --arch Custom \
     --dataset $dataset 2>&1 | tee logs/test_rgbd.log

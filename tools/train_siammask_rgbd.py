@@ -54,11 +54,11 @@ parser.add_argument('--pretrained', dest='pretrained', default='',
                     help='use pre-trained model')
 parser.add_argument('--config', dest='config', required=True,
                     help='hyperparameter of SiamMask in json format')
-parser.add_argument('--arch', dest='arch', default='', choices=['Custom',],
+parser.add_argument('--arch', dest='arch', default='', choices=['Custom', 'Custom_RGBD'],
                     help='architecture of pretrained model')
 parser.add_argument('-l', '--log', default="log.txt", type=str,
                     help='log file')
-parser.add_argument('-s', '--save_dir', default='snapshot', type=str,
+parser.add_argument('-s', '--save_dir', default='snapshot_RGBD', type=str,
                     help='save dir')
 parser.add_argument('--log-dir', default='board', help='TensorBoard log dir')
 
@@ -139,6 +139,9 @@ def main():
     train_loader, val_loader = build_data_loader(cfg)
 
     if args.arch == 'Custom':
+        from custom import Custom
+        model = Custom(pretrain=True, anchors=cfg['anchors'])
+    elif args.arch == 'Custom_RGBD':
         from custom_rgbd import Custom_RGBD
         model = Custom_RGBD(pretrain=True, anchors=cfg['anchors'])
     else:

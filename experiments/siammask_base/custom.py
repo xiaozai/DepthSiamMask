@@ -110,26 +110,3 @@ class Custom(SiamMask):
         rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
         pred_mask = self.mask(self.zf, search)
         return rpn_pred_cls, rpn_pred_loc, pred_mask
-
-
-
-class Custom_RGBD(SiamMask):
-    def __init__(self, pretrain=False, **kwargs):
-        super(Custom_RGBD, self).__init__(**kwargs)
-        self.features = ResDown(pretrain=pretrain)
-        self.rpn_model = UP(anchor_num=self.anchor_num, feature_in=256, feature_out=256)
-        self.mask_model = MaskCorr()
-
-    def template(self, template):
-        self.zf = self.features(template)
-
-    def track(self, search):
-        search = self.features(search)
-        rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
-        return rpn_pred_cls, rpn_pred_loc
-
-    def track_mask(self, search):
-        search = self.features(search)
-        rpn_pred_cls, rpn_pred_loc = self.rpn(self.zf, search)
-        pred_mask = self.mask(self.zf, search)
-        return rpn_pred_cls, rpn_pred_loc, pred_mask
